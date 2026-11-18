@@ -1,0 +1,21 @@
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - supplypulse_data:/data/db
+  api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      MONGODB_URI: mongodb://mongodb:27017/supplypulse
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET must be set in .env}"
+    depends_on:
+      - mongodb
+volumes:
+  supplypulse_data:
