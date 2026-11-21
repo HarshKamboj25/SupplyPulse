@@ -1,4 +1,4 @@
-﻿import {
+import {
   createContext,
   useCallback,
   useContext,
@@ -19,42 +19,8 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    let isMounted = true
-
-    const restoreSession = async () => {
-      const token = sessionStorage.getItem('supplypulse_token')
-
-      if (!token) {
-        if (isMounted) setLoading(false)
-        return
-      }
-
-      try {
-        const response = await api.get('/auth/me')
-
-        if (isMounted) {
-          setUser(response.data.user)
-        }
-      } catch (error) {
-        if (error.response?.status === 401) {
-          sessionStorage.removeItem('supplypulse_token')
-        }
-
-        if (isMounted) {
-          setUser(null)
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
-      }
-    }
-
-    restoreSession()
-
-    return () => {
-      isMounted = false
-    }
+    sessionStorage.removeItem('supplypulse_token')
+    setLoading(false)
   }, [])
 
   const login = useCallback(async (credentials) => {
