@@ -23,6 +23,7 @@
   <img src="https://img.shields.io/github/stars/HarshKamboj25/SupplyPulse?style=flat-square&color=16c991" alt="GitHub stars" />
   <img src="https://img.shields.io/github/forks/HarshKamboj25/SupplyPulse?style=flat-square&color=16c991" alt="GitHub forks" />
   <img src="https://img.shields.io/github/last-commit/HarshKamboj25/SupplyPulse?style=flat-square&color=16c991" alt="Last commit" />
+  <img src="https://github.com/HarshKamboj25/SupplyPulse/actions/workflows/frontend-ci.yml/badge.svg?branch=main" alt="Frontend CI Status" />
   <img src="https://img.shields.io/github/issues/HarshKamboj25/SupplyPulse?style=flat-square&color=16c991" alt="GitHub issues" />
   <img src="https://img.shields.io/badge/Frontend-React_19-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React" />
   <img src="https://img.shields.io/badge/Backend-Node.js-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js" />
