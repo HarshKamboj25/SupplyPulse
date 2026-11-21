@@ -1,4 +1,4 @@
-import bcrypt from "bcryptjs";
+﻿import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { AppError } from "../utils/AppError.js";
@@ -6,6 +6,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 function createToken(user) {
   return jwt.sign({ sub: user._id, role: user.role }, process.env.JWT_SECRET, {
+    algorithm: "HS256",
     expiresIn: process.env.JWT_EXPIRES_IN || "1d"
   });
 }

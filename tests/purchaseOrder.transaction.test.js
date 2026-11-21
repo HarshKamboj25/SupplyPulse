@@ -1,4 +1,4 @@
-﻿import { jest } from "@jest/globals";
+import { jest } from "@jest/globals";
 import mongoose from "mongoose";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 
@@ -174,5 +174,44 @@ describe("Purchase Order Receiving Transaction", () => {
     expect(result.error.statusCode).toBe(404);
     expect(unchangedOrder.status).toBe("APPROVED");
     expect(unchangedProduct.stockByWarehouse[0].quantity).toBe(4);
+  });
+  test("concurrent receiving processes an order only once", async () => {
+    const { order, product } = await createFixtures();
+
+    const results = await Promise.all([
+      callReceiveOrder(order._id),
+      callReceiveOrder(order._id)
+    ]);
+
+    const successfulResults = results.filter(result => !result.error);
+    const failedResults = results.filter(result => result.error);
+
+    const finalOrder = await PurchaseOrder.findById(order._id);
+    const finalProduct = await Product.findById(product._id);
+
+    expect(successfulResults).toHaveLength(1);
+    expect(failedResults).toHaveLength(1);
+    expect(failedResults[0].error.statusCode).toBe(409);
+    expect(finalOrder.status).toBe("RECEIVED");
+    expect(finalProduct.stockByWarehouse[0].quantity).toBe(10);
+  });
+
+  test("accumulates quantities when an order contains duplicate product lines", async () => {
+    const { order, product } = await createFixtures();
+
+    order.items.push({
+      product: product._id,
+      quantity: 5,
+      unitPrice: 100
+    });
+
+    await order.save();
+
+    const result = await callReceiveOrder(order._id);
+
+    const updatedProduct = await Product.findById(product._id);
+
+    expect(result.error).toBeUndefined();
+    expect(updatedProduct.stockByWarehouse[0].quantity).toBe(15);
   });
 });

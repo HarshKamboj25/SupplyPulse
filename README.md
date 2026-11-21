@@ -1,167 +1,126 @@
 # SupplyPulse
 
-**SupplyPulse** is a compact, backend-first capstone: a multi-warehouse inventory management REST API built with Node.js, Express, MongoDB Atlas and Mongoose.
+Multi-warehouse inventory management REST API built with Node.js, Express, MongoDB and Mongoose.
 
-It is intentionally scoped for a short academic sprint. It is not a full ERP, payment platform, or microservices system.
-
-## Included
-
-- MVC-style structure: routes, controllers, models and middleware
-- Register/login with bcrypt password hashing and JWT
-- Role-based access: `ADMIN`, `WAREHOUSE_MANAGER`, `PROCUREMENT_OFFICER`
-- CRUD for products, warehouses and suppliers
-- Purchase order creation and receiving
-- Stock receiving updates warehouse stock
-- Low-stock analytics endpoint
+## Features
+- JWT authentication and bcrypt password hashing
+- Role-based access: ADMIN, WAREHOUSE_MANAGER, PROCUREMENT_OFFICER
+- Product, warehouse and supplier CRUD
+- Purchase order creation, approval and receiving
+- Transaction-safe stock updates with rollback
+- Protection against concurrent duplicate receiving
+- Low-stock analytics
 - Request validation and centralized error handling
-- EventEmitter audit event example
-- Seed script, Jest/Supertest starter test, Postman collection
-- Dockerfile and compose file (optional)
+- EventEmitter stock-received audit event
+- Safe, non-destructive database seed script
+- Jest and Supertest automated tests
+- Postman API collection
+- Optional Docker configuration
 
 ## Requirements
-
 - Node.js 20+
 - npm
-- MongoDB Atlas account (or local MongoDB)
+- MongoDB Atlas or local MongoDB
 - Postman (recommended)
 
-## PowerShell setup (terminal-based)
-
-Open PowerShell in the extracted `SupplyPulse` folder.
-
+## PowerShell Setup
+Run from the project directory:
 ```powershell
 Copy-Item .env.example .env
 npm install
 ```
+Configure `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `PORT`, `CLIENT_ORIGIN`, `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` in `.env`. Use a JWT secret of at least 32 characters and a seed administrator password of at least 16 characters. Never commit `.env` or share credentials.
 
-Open `.env` in VS Code and set `MONGODB_URI` and a long random `JWT_SECRET`.
-Do not commit `.env` or share your connection string.
+For MongoDB Atlas, create a database user, allow your IP under Network Access, and copy the Node.js driver connection URI into `MONGODB_URI`. URL-encode special characters in the database password.
 
-In MongoDB Atlas:
-1. Create a free cluster.
-2. Create a database user under Database Access.
-3. Add your current IP under Network Access.
-4. Choose Connect > Drivers > Node.js and copy the URI.
-5. Replace the placeholder URI in `.env`. URL-encode special characters in the database password.
-
-Run:
-
+## Run the API
 ```powershell
 npm run dev
 ```
+For a normal start:
+```powershell
+npm start
+```
+Default address: `http://localhost:5000`
 
-Expected startup message:
-`SupplyPulse API running on http://localhost:5000`
+Health endpoints:
+- `GET /`
+- `GET /api/v1/health`
 
-Check:
-- `http://localhost:5000/`
-- `http://localhost:5000/api/v1/health`
-
-## Seed sample data
-
-In a second terminal, from this folder:
-
+## Seed Sample Data
+Configure seed credentials in `.env`, then run:
 ```powershell
 npm run seed
 ```
+The seed script creates or preserves the administrator, sample warehouse, supplier and products. It is non-destructive: it does not clear collections, delete existing records, or reset existing product stock.
 
-Seed creates a demo admin user and sample warehouse, supplier and product records. Do not publish or reuse default demo credentials. Configure a secure password for local testing.
-
-**Important:** The seed script clears existing collections before inserting sample data. Run it only against a disposable development database. Never run it against a database containing data you need to preserve.
-
-## Main API routes
-
-All routes are prefixed with `/api/v1`.
+## API Routes
+All routes use the `/api/v1` prefix.
 
 | Method | Route | Access |
 |---|---|---|
-| POST | `/auth/register` | Public (new users become procurement officers) |
+| POST | `/auth/register` | Public |
 | POST | `/auth/login` | Public |
 | GET | `/auth/me` | Authenticated |
-| GET/POST | `/warehouses` | Authenticated / Admin |
-| GET/PATCH/DELETE | `/warehouses/:id` | Authenticated / Admin |
-| GET/POST | `/suppliers` | Authenticated / Admin or Procurement |
-| GET/PATCH/DELETE | `/suppliers/:id` | Authenticated / Admin or Procurement |
-| GET/POST | `/products` | Authenticated / Admin or Warehouse Manager |
-| GET/PATCH/DELETE | `/products/:id` | Authenticated / Admin or Warehouse Manager |
+| GET | `/warehouses` | Authenticated |
+| POST | `/warehouses` | Admin |
+| GET | `/warehouses/:id` | Authenticated |
+| PATCH, DELETE | `/warehouses/:id` | Admin |
+| GET | `/suppliers` | Authenticated |
+| POST | `/suppliers` | Admin or Procurement Officer |
+| GET | `/suppliers/:id` | Authenticated |
+| PATCH | `/suppliers/:id` | Admin or Procurement Officer |
+| DELETE | `/suppliers/:id` | Admin |
+| GET | `/products` | Authenticated |
+| POST | `/products` | Admin or Warehouse Manager |
+| GET | `/products/:id` | Authenticated |
+| PATCH | `/products/:id` | Admin or Warehouse Manager |
+| DELETE | `/products/:id` | Admin |
 | GET | `/analytics/low-stock` | Authenticated |
-| GET/POST | `/purchase-orders` | Authenticated / Procurement or Admin |
+| GET | `/purchase-orders` | Authenticated |
+| POST | `/purchase-orders` | Admin or Procurement Officer |
 | GET | `/purchase-orders/:id` | Authenticated |
 | PATCH | `/purchase-orders/:id/approve` | Admin |
 | PATCH | `/purchase-orders/:id/receive` | Admin or Warehouse Manager |
 
-### Example login
-
-```json
-{
-  "email": "YOUR_REGISTERED_EMAIL",
-  "password": "YOUR_PASSWORD"
-}
-```
-
-Send the returned token as:
-
+## Authentication
+Register or log in to receive a JWT. Send it with protected requests using:
 `Authorization: Bearer YOUR_TOKEN`
 
-### Example product
+## Purchase Order Workflow
+1. Procurement Officer or Admin creates a draft purchase order.
+2. Admin approves the order.
+3. Admin or Warehouse Manager receives it.
+4. Stock is incremented and the order becomes `RECEIVED`.
 
-```json
-{
-  "sku": "KB-001",
-  "name": "Mechanical Keyboard",
-  "category": "Accessories",
-  "unitPrice": 2499,
-  "reorderThreshold": 10,
-  "stockByWarehouse": [
-    { "warehouse": "WAREHOUSE_OBJECT_ID", "quantity": 25, "binLocation": "A-01" }
-  ]
-}
-```
+Receiving uses a MongoDB transaction. Failed operations roll back stock and order changes. Conditional status updates prevent concurrent duplicate receiving. Duplicate product lines are accumulated correctly. The stock-received event is emitted only after a successful transaction.
 
-### Purchase order workflow
-
-1. Procurement officer creates a purchase order with one or more product lines.
-2. Admin approves it.
-3. Admin or warehouse manager receives it.
-4. Receiving increments the selected warehouse stock and marks the order `RECEIVED`.
-
-Purchase order receiving uses a MongoDB session and transaction. The purchase order status update and warehouse stock increments are performed within the same transaction, so a failed operation rolls back the changes. The stock-received event is emitted after the transaction succeeds.
-
-For production workloads, also consider request idempotency and additional safeguards against duplicate receiving requests.
-
-## Tests
-
+## Tests and Security
+Run automated tests:
 ```powershell
 npm test
 ```
+Latest verified result: **11 test suites passed, 57 tests passed.**
 
-The current test suite contains three test files covering the health endpoint, purchase order transaction behaviour and end-to-end API workflows. The verified test run completed with **3 test suites passed and 6 tests passed**.
+Run dependency audit:
+```powershell
+npm audit
+```
+Latest verified result: **0 vulnerabilities.**
 
-The tests cover transaction success and rollback, authentication, role-based access, purchase order approval and receiving, and stock updates.
+## Postman
+Import `postman/SupplyPulse.postman_collection.json`. The collection contains 25 requests across 8 folders: Health, Authentication, Warehouses, Suppliers, Products, Purchase Orders, Analytics and Cleanup.
 
-## Docker (optional)
+Cleanup requests are optional reference-integrity checks. They may return `409 Conflict` when a resource is referenced by a purchase order.
 
+## Docker (Optional)
 ```powershell
 docker compose up --build
 ```
+Docker runtime verification has not been completed. Docker is optional; the API can run locally with MongoDB Atlas.
 
-The compose file runs the API and a local MongoDB container. If using Atlas instead, run the API locally with your Atlas URI and skip the MongoDB service.
+## Next Development Phase
+Complete backend verification and Postman checks before beginning frontend development.
 
-## Suggested 7-day build order
-
-1. Run starter, connect Atlas, test health route.
-2. Understand models; test auth and role middleware.
-3. Finish product, warehouse and supplier CRUD.
-4. Test purchase-order create/approve/receive workflow.
-5. Add aggregation reports and indexes.
-6. Expand Jest tests, Postman collection and Docker check.
-7. Finish README screenshots, API evidence and viva notes.
-
-## Deliberately out of scope
-
-- Payment gateway and shipping integrations
-- Microservices, Redis and Kubernetes
-- Full React frontend
-- Complex forecasting or live GPS tracking
-
-Keep the project focused on a reliable backend and demonstrate each syllabus concept with working API evidence.
+## Out of Scope
+Payment and shipping integrations, microservices, Redis/Kubernetes, complex forecasting and live GPS tracking.

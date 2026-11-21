@@ -10,3 +10,11 @@ coverage/
 *.bak
 *.backup
 *.backup.*
+
+# SupplyPulse local safety snapshots and preserved backups
+_safety_snapshots/
+**/*.pre-*
+
+# Preserved frontend UI backups
+**/*.ui-backup
+**/*.before-*

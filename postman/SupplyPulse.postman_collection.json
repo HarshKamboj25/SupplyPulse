@@ -1,72 +1,566 @@
-{
-  "info": {
-    "name": "SupplyPulse API",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:5000/api/v1"
-    },
-    {
-      "key": "token",
-      "value": ""
-    }
-  ],
-  "item": [
-    {
-      "name": "Health",
-      "request": {
-        "method": "GET",
-        "url": "{{baseUrl}}/health"
-      }
-    },
-    {
-      "name": "Register",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Demo User\",\n  \"email\": \"demo@example.com\",\n  \"password\": \"Password@123\"\n}"
-        },
-        "url": "{{baseUrl}}/auth/register"
-      }
-    },
-    {
-      "name": "Login",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"admin@supplypulse.dev\",\n  \"password\": \"Admin@12345\"\n}"
-        },
-        "url": "{{baseUrl}}/auth/login"
-      }
-    },
-    {
-      "name": "Low stock",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
-          }
-        ],
-        "url": "{{baseUrl}}/analytics/low-stock"
-      }
-    }
-  ]
+﻿{
+    "info":  {
+                 "description":  "Complete multi-warehouse inventory management API collection.",
+                 "name":  "SupplyPulse API",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+             },
+    "auth":  {
+                 "bearer":  [
+                                {
+                                    "key":  "token",
+                                    "type":  "string",
+                                    "value":  "{{token}}"
+                                }
+                            ],
+                 "type":  "bearer"
+             },
+    "variable":  [
+                     {
+                         "key":  "baseUrl",
+                         "value":  "http://localhost:5000/api/v1"
+                     },
+                     {
+                         "key":  "token",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "adminEmail",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "adminPassword",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "registerName",
+                         "value":  "Demo User"
+                     },
+                     {
+                         "key":  "registerEmail",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "registerPassword",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "warehouseId",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "supplierId",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "productId",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "purchaseOrderId",
+                         "value":  ""
+                     }
+                 ],
+    "item":  [
+                 {
+                     "name":  "Health",
+                     "item":  [
+                                  {
+                                      "name":  "Health Check",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/health",
+                                                      "auth":  {
+                                                                   "type":  "noauth"
+                                                               }
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Authentication",
+                     "item":  [
+                                  {
+                                      "name":  "Register",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/auth/register",
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"name\": \"{{registerName}}\",\n  \"email\": \"{{registerEmail}}\",\n  \"password\": \"{{registerPassword}}\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "noauth"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"Registration successful\", function () {",
+                                                                                    "    pm.response.to.have.status(201);",
+                                                                                    "    const body = pm.response.json();",
+                                                                                    "    pm.expect(body.success).to.eql(true);",
+                                                                                    "    pm.expect(body.token).to.be.a(\"string\");",
+                                                                                    "    pm.collectionVariables.set(\"token\", body.token);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Login",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/auth/login",
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "noauth"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"Login successful\", function () {",
+                                                                                    "    pm.response.to.have.status(200);",
+                                                                                    "    const body = pm.response.json();",
+                                                                                    "    pm.expect(body.success).to.eql(true);",
+                                                                                    "    pm.expect(body.token).to.be.a(\"string\");",
+                                                                                    "    pm.collectionVariables.set(\"token\", body.token);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Current User Profile",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/auth/me"
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Warehouses",
+                     "item":  [
+                                  {
+                                      "name":  "Create Warehouse",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/warehouses",
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"code\": \"WH-TEST-01\",\n  \"name\": \"Test Warehouse\",\n  \"city\": \"Delhi\",\n  \"capacityUnits\": 1000\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"Warehouse created\", function () {",
+                                                                                    "    pm.response.to.have.status(201);",
+                                                                                    "    const body = pm.response.json();",
+                                                                                    "    pm.collectionVariables.set(\"warehouseId\", body.data._id);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "List Warehouses",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/warehouses"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Get Warehouse",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/warehouses/{{warehouseId}}"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Update Warehouse",
+                                      "request":  {
+                                                      "method":  "PATCH",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/warehouses/{{warehouseId}}",
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"capacityUnits\": 1500\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               }
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Suppliers",
+                     "item":  [
+                                  {
+                                      "name":  "Create Supplier",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/suppliers",
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"name\": \"NorthStar Supplies\",\n  \"email\": \"northstar-test@example.com\",\n  \"phone\": \"9876543210\",\n  \"maxLeadDays\": 5\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"Supplier created\", function () {",
+                                                                                    "    pm.response.to.have.status(201);",
+                                                                                    "    const body = pm.response.json();",
+                                                                                    "    pm.collectionVariables.set(\"supplierId\", body.data._id);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "List Suppliers",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/suppliers"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Get Supplier",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/suppliers/{{supplierId}}"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Update Supplier",
+                                      "request":  {
+                                                      "method":  "PATCH",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/suppliers/{{supplierId}}",
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"maxLeadDays\": 7\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               }
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Products",
+                     "item":  [
+                                  {
+                                      "name":  "Create Product",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/products",
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"sku\": \"SP-TEST-001\",\n  \"name\": \"Test Keyboard\",\n  \"category\": \"Accessories\",\n  \"unitPrice\": 1499,\n  \"reorderThreshold\": 10,\n  \"stockByWarehouse\": [\n    {\n      \"warehouse\": \"{{warehouseId}}\",\n      \"quantity\": 5,\n      \"binLocation\": \"A-01\"\n    }\n  ]\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"Product created\", function () {",
+                                                                                    "    pm.response.to.have.status(201);",
+                                                                                    "    const body = pm.response.json();",
+                                                                                    "    pm.collectionVariables.set(\"productId\", body.data._id);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "List Products",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/products"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Get Product",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/products/{{productId}}"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Update Product",
+                                      "request":  {
+                                                      "method":  "PATCH",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/products/{{productId}}",
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"unitPrice\": 1599,\n  \"reorderThreshold\": 12\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               }
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Purchase Orders",
+                     "item":  [
+                                  {
+                                      "name":  "Create Purchase Order",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/purchase-orders",
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"supplier\": \"{{supplierId}}\",\n  \"warehouse\": \"{{warehouseId}}\",\n  \"items\": [\n    {\n      \"product\": \"{{productId}}\",\n      \"quantity\": 10,\n      \"unitPrice\": 1599\n    }\n  ]\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"Purchase order created\", function () {",
+                                                                                    "    pm.response.to.have.status(201);",
+                                                                                    "    const body = pm.response.json();",
+                                                                                    "    pm.collectionVariables.set(\"purchaseOrderId\", body.data._id);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "List Purchase Orders",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/purchase-orders"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Get Purchase Order",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/purchase-orders/{{purchaseOrderId}}"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Approve Purchase Order",
+                                      "request":  {
+                                                      "method":  "PATCH",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/purchase-orders/{{purchaseOrderId}}/approve"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Receive Purchase Order",
+                                      "request":  {
+                                                      "method":  "PATCH",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/purchase-orders/{{purchaseOrderId}}/receive"
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Analytics",
+                     "item":  [
+                                  {
+                                      "name":  "Low Stock Analytics",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/analytics/low-stock"
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Cleanup",
+                     "item":  [
+                                  {
+                                      "name":  "Delete Warehouse",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/warehouses/{{warehouseId}}"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Delete Supplier",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/suppliers/{{supplierId}}"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Delete Product",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  "{{baseUrl}}/products/{{productId}}"
+                                                  }
+                                  }
+                              ]
+                 }
+             ]
 }

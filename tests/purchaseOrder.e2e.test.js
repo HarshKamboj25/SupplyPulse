@@ -1,4 +1,4 @@
-﻿import { jest } from "@jest/globals";
+import { jest } from "@jest/globals";
 import request from "supertest";
 import mongoose from "mongoose";
 import path from "node:path";
@@ -201,6 +201,72 @@ describe("SupplyPulse Purchase Order E2E", () => {
 
     expect(productResponse.statusCode).toBe(201);
     productId = productResponse.body.data._id;
+    // 9A. Reject product creation with a nonexistent warehouse.
+    const missingProductWarehouseId = new mongoose.Types.ObjectId().toString();
+
+    const missingWarehouseProduct = await request(app)
+      .post("/api/v1/products")
+      .set("Authorization", `Bearer ${warehouseManagerToken}`)
+      .send({
+        sku: "E2E-PRODUCT-MISSING-WH",
+        name: "Invalid Warehouse Product",
+        category: "Testing",
+        unitPrice: 100,
+        stockByWarehouse: [
+          { warehouse: missingProductWarehouseId, quantity: 2 }
+        ]
+      });
+
+    expect(missingWarehouseProduct.statusCode).toBe(404);
+
+    // 9B. Reject product update with a nonexistent warehouse.
+    const missingWarehouseUpdate = await request(app)
+      .patch(`/api/v1/products/${productId}`)
+      .set("Authorization", `Bearer ${warehouseManagerToken}`)
+      .send({
+        stockByWarehouse: [
+          { warehouse: missingProductWarehouseId, quantity: 3 }
+        ]
+      });
+
+    expect(missingWarehouseUpdate.statusCode).toBe(404);
+
+    // 9C and 9D. Reject creation and update with an inactive warehouse.
+    await Warehouse.updateOne(
+      { _id: warehouseId },
+      { $set: { isActive: false } }
+    );
+
+    const inactiveWarehouseProduct = await request(app)
+      .post("/api/v1/products")
+      .set("Authorization", `Bearer ${warehouseManagerToken}`)
+      .send({
+        sku: "E2E-PRODUCT-INACTIVE-WH",
+        name: "Inactive Warehouse Product",
+        category: "Testing",
+        unitPrice: 100,
+        stockByWarehouse: [
+          { warehouse: warehouseId, quantity: 2 }
+        ]
+      });
+
+    expect(inactiveWarehouseProduct.statusCode).toBe(409);
+
+    const inactiveWarehouseUpdate = await request(app)
+      .patch(`/api/v1/products/${productId}`)
+      .set("Authorization", `Bearer ${warehouseManagerToken}`)
+      .send({
+        stockByWarehouse: [
+          { warehouse: warehouseId, quantity: 5 }
+        ]
+      });
+
+    expect(inactiveWarehouseUpdate.statusCode).toBe(409);
+
+    await Warehouse.updateOne(
+      { _id: warehouseId },
+      { $set: { isActive: true } }
+    );
 
     // 10. Create a purchase order as Procurement Officer.
     const orderResponse = await request(app)
@@ -222,6 +288,40 @@ describe("SupplyPulse Purchase Order E2E", () => {
     expect(orderResponse.body.data.status).toBe("DRAFT");
     purchaseOrderId = orderResponse.body.data._id;
 
+    // 10A. Concurrent PO creation must generate unique PO numbers.
+    const concurrentOrderResponses = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        request(app)
+          .post("/api/v1/purchase-orders")
+          .set("Authorization", `Bearer ${procurementToken}`)
+          .send({
+            supplier: supplierId,
+            warehouse: warehouseId,
+            items: [
+              {
+                product: productId,
+                quantity: 2,
+                unitPrice: 100
+              }
+            ]
+          })
+      )
+    );
+
+    expect(
+      concurrentOrderResponses.map(response => response.statusCode)
+    ).toEqual([201, 201, 201]);
+
+    const generatedPoNumbers = concurrentOrderResponses.map(
+      response => response.body.data.poNumber
+    );
+
+    expect(new Set(generatedPoNumbers).size).toBe(3);
+
+    generatedPoNumbers.forEach(poNumber => {
+      expect(poNumber).toMatch(/^PO-\d+-[A-F0-9]{8}$/);
+    });
+
     // 11. Procurement Officer must not approve an order.
     const forbiddenApproval = await request(app)
       .patch(`/api/v1/purchase-orders/${purchaseOrderId}/approve`)
@@ -229,13 +329,27 @@ describe("SupplyPulse Purchase Order E2E", () => {
 
     expect(forbiddenApproval.statusCode).toBe(403);
 
-    // 12. Admin approves the purchase order.
-    const approvalResponse = await request(app)
-      .patch(`/api/v1/purchase-orders/${purchaseOrderId}/approve`)
-      .set("Authorization", `Bearer ${adminToken}`);
+    // 12. Two simultaneous admin approvals: exactly one must succeed.
+    const approvalRequests = await Promise.all([
+      request(app)
+        .patch(`/api/v1/purchase-orders/${purchaseOrderId}/approve`)
+        .set("Authorization", `Bearer ${adminToken}`),
+      request(app)
+        .patch(`/api/v1/purchase-orders/${purchaseOrderId}/approve`)
+        .set("Authorization", `Bearer ${adminToken}`)
+    ]);
 
-    expect(approvalResponse.statusCode).toBe(200);
-    expect(approvalResponse.body.data.status).toBe("APPROVED");
+    const approvalStatuses = approvalRequests
+      .map(response => response.statusCode)
+      .sort((a, b) => a - b);
+
+    expect(approvalStatuses).toEqual([200, 409]);
+
+    const successfulApproval = approvalRequests.find(
+      response => response.statusCode === 200
+    );
+
+    expect(successfulApproval.body.data.status).toBe("APPROVED");
 
     // 13. Procurement Officer must not receive the order.
     const forbiddenReceipt = await request(app)
@@ -281,5 +395,153 @@ describe("SupplyPulse Purchase Order E2E", () => {
 
     expect(listedOrder).toBeTruthy();
     expect(listedOrder.status).toBe("RECEIVED");
+
+    // 17. Retrieve a specific purchase order by ID.
+    const singleOrderResponse = await request(app)
+      .get(`/api/v1/purchase-orders/${purchaseOrderId}`)
+      .set("Authorization", `Bearer ${procurementToken}`);
+
+    expect(singleOrderResponse.statusCode).toBe(200);
+    expect(singleOrderResponse.body.success).toBe(true);
+    expect(singleOrderResponse.body.data._id).toBe(purchaseOrderId);
+    expect(singleOrderResponse.body.data.status).toBe("RECEIVED");
+
+    // Verify populated supplier, warehouse and product details.
+    expect(singleOrderResponse.body.data.supplier.name).toBe(
+      "E2E Test Supplier"
+    );
+
+    expect(singleOrderResponse.body.data.warehouse.code).toBe("E2E-WH");
+
+    expect(singleOrderResponse.body.data.items[0].product.sku).toBe(
+      "E2E-PRODUCT-001"
+    );
+
+    // 18. A valid but nonexistent purchase-order ID must return 404.
+    const nonexistentOrderResponse = await request(app)
+      .get(`/api/v1/purchase-orders/${new mongoose.Types.ObjectId()}`)
+      .set("Authorization", `Bearer ${procurementToken}`);
+
+    expect(nonexistentOrderResponse.statusCode).toBe(404);
+
+    // 19. A malformed purchase-order ID must return 400.
+    const invalidOrderResponse = await request(app)
+      .get("/api/v1/purchase-orders/invalid-id")
+      .set("Authorization", `Bearer ${procurementToken}`);
+
+    expect(invalidOrderResponse.statusCode).toBe(400);
+
+    // 20. Prepare a reusable valid purchase-order payload.
+    const referenceTestPayload = {
+      supplier: supplierId,
+      warehouse: warehouseId,
+      items: [
+        {
+          product: productId,
+          quantity: 2,
+          unitPrice: 100
+        }
+      ]
+    };
+
+    const ordersBeforeReferenceTests = await PurchaseOrder.countDocuments();
+
+    // 21. Reject a nonexistent supplier.
+    const missingSupplierResponse = await request(app)
+      .post("/api/v1/purchase-orders")
+      .set("Authorization", `Bearer ${procurementToken}`)
+      .send({
+        ...referenceTestPayload,
+        supplier: new mongoose.Types.ObjectId().toString()
+      });
+
+    expect(missingSupplierResponse.statusCode).toBe(404);
+
+    // 22. Reject an inactive supplier.
+    await Supplier.updateOne(
+      { _id: supplierId },
+      { $set: { isActive: false } }
+    );
+
+    const inactiveSupplierResponse = await request(app)
+      .post("/api/v1/purchase-orders")
+      .set("Authorization", `Bearer ${procurementToken}`)
+      .send(referenceTestPayload);
+
+    expect(inactiveSupplierResponse.statusCode).toBe(409);
+
+    await Supplier.updateOne(
+      { _id: supplierId },
+      { $set: { isActive: true } }
+    );
+
+    // 23. Reject a nonexistent warehouse.
+    const missingWarehouseResponse = await request(app)
+      .post("/api/v1/purchase-orders")
+      .set("Authorization", `Bearer ${procurementToken}`)
+      .send({
+        ...referenceTestPayload,
+        warehouse: new mongoose.Types.ObjectId().toString()
+      });
+
+    expect(missingWarehouseResponse.statusCode).toBe(404);
+
+    // 24. Reject an inactive warehouse.
+    await Warehouse.updateOne(
+      { _id: warehouseId },
+      { $set: { isActive: false } }
+    );
+
+    const inactiveWarehouseResponse = await request(app)
+      .post("/api/v1/purchase-orders")
+      .set("Authorization", `Bearer ${procurementToken}`)
+      .send(referenceTestPayload);
+
+    expect(inactiveWarehouseResponse.statusCode).toBe(409);
+
+    await Warehouse.updateOne(
+      { _id: warehouseId },
+      { $set: { isActive: true } }
+    );
+
+    // 25. Reject a nonexistent product.
+    const missingProductResponse = await request(app)
+      .post("/api/v1/purchase-orders")
+      .set("Authorization", `Bearer ${procurementToken}`)
+      .send({
+        ...referenceTestPayload,
+        items: [
+          {
+            product: new mongoose.Types.ObjectId().toString(),
+            quantity: 2,
+            unitPrice: 100
+          }
+        ]
+      });
+
+    expect(missingProductResponse.statusCode).toBe(404);
+
+    // 26. Reject an inactive product.
+    await Product.updateOne(
+      { _id: productId },
+      { $set: { isActive: false } }
+    );
+
+    const inactiveProductResponse = await request(app)
+      .post("/api/v1/purchase-orders")
+      .set("Authorization", `Bearer ${procurementToken}`)
+      .send(referenceTestPayload);
+
+    expect(inactiveProductResponse.statusCode).toBe(409);
+
+    await Product.updateOne(
+      { _id: productId },
+      { $set: { isActive: true } }
+    );
+
+    // 27. Invalid references must not create purchase orders.
+    const ordersAfterReferenceTests = await PurchaseOrder.countDocuments();
+
+    expect(ordersAfterReferenceTests).toBe(ordersBeforeReferenceTests);
   });
 });

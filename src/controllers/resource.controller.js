@@ -1,4 +1,4 @@
-import { asyncHandler } from "../utils/asyncHandler.js";
+﻿import { asyncHandler } from "../utils/asyncHandler.js";
 import { AppError } from "../utils/AppError.js";
 
 export const list = (Model, populate = "") => asyncHandler(async (_req, res) => {
@@ -29,8 +29,21 @@ export const update = (Model) => asyncHandler(async (req, res) => {
   res.json({ success: true, data: item });
 });
 
-export const remove = (Model) => asyncHandler(async (req, res) => {
-  const item = await Model.findByIdAndDelete(req.params.id);
-  if (!item) throw new AppError("Record not found", 404);
+export const remove = (Model, referenceCheck = null) => asyncHandler(async (req, res) => {
+  const item = await Model.findById(req.params.id);
+
+  if (!item) {
+    throw new AppError("Record not found", 404);
+  }
+
+  if (referenceCheck && await referenceCheck(item._id)) {
+    throw new AppError(
+      "Cannot delete this record because it is referenced by other records",
+      409
+    );
+  }
+
+  await Model.deleteOne({ _id: item._id });
+
   res.json({ success: true, message: "Record deleted" });
 });
