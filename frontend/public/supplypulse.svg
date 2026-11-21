@@ -1,0 +1,19 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="supplypulse-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#16c991"/>
+      <stop offset="55%" stop-color="#078c68"/>
+      <stop offset="100%" stop-color="#005b47"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="4" y="4" width="92" height="92" rx="25"
+        fill="url(#supplypulse-gradient)"/>
+
+  <path d="M9 51H29L40 28L53 73L66 42L73 51H91"
+        fill="none"
+        stroke="#eafff6"
+        stroke-width="7"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+</svg>
